@@ -1,10 +1,10 @@
 # Install with:
-#   brew tap developer1-vd/spacepenguin https://github.com/developer1-vd/SpacePenguin
-#   brew install --cask spacepenguin
-# Written by tools/update-package-manifests.sh; run it again for a new release.
+#   brew install --cask developer1-vd/spacepenguin/spacepenguin
+# Written by tools/update-package-manifests.sh in developer1-vd/SpacePenguin;
+# copied here for each release.
 cask "spacepenguin" do
-  version "1.0.0-rc.4"
-  sha256 "e1b7efb046ee96fd0ee49e130b4d3d3ee57dac36bc36a98eb12158a946963794"
+  version "1.0.0-rc.7"
+  sha256 "cc07a8b057d2b78763154d4142557caf7aa68b68e9674c9bbc30e8005cf044d5"
 
   url "https://github.com/developer1-vd/SpacePenguin/releases/download/v#{version}/SpacePenguin-#{version}-macos.dmg"
   name "SpacePenguin"
