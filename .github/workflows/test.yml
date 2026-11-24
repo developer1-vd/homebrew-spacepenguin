@@ -1,0 +1,63 @@
+# Installs the cask with Homebrew on real Macs (GitHub's macOS runners), starts
+# SpacePenguin, takes a screenshot of it, and removes it again: a test of the
+# cask and the Mac app without owning a Mac. Runs on every push and pull request,
+# and by hand from the Actions tab.
+name: test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  cask:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS 15 Sequoia
+            os: macos-15
+          - name: macOS 26 Tahoe
+            os: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tap this repository
+        run: brew tap developer1-vd/spacepenguin "${GITHUB_WORKSPACE}"
+
+      - name: Check the cask's style
+        run: brew style --cask developer1-vd/spacepenguin/spacepenguin
+
+      - name: Audit the cask (download and checksum included)
+        run: brew audit --cask --online developer1-vd/spacepenguin/spacepenguin
+
+      - name: Install
+        run: brew install --cask developer1-vd/spacepenguin/spacepenguin
+
+      - name: Start SpacePenguin and take a screenshot
+        run: |
+          app=/Applications/SpacePenguin.app
+          test -d "${app}"
+          defaults read "${app}/Contents/Info.plist" CFBundleShortVersionString
+          "${app}/Contents/MacOS/SpacePenguin" --version
+          # No setup wizard on an unattended run.
+          SPACEPENGUIN_NO_SETUP=1 "${app}/Contents/MacOS/SpacePenguin" https://example.com/ &
+          pid=$!
+          sleep 40
+          screencapture -x screenshot.png || true
+          kill -0 "${pid}" || { echo "::error::SpacePenguin quit by itself"; exit 1; }
+          kill "${pid}"
+          wait "${pid}" || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshot-${{ matrix.os }}
+          path: screenshot.png
+          if-no-files-found: ignore
+
+      - name: Uninstall
+        run: brew uninstall --cask --zap spacepenguin
