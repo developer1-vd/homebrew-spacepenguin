@@ -64,3 +64,61 @@ jobs:
 
       - name: Uninstall
         run: brew uninstall --cask --zap spacepenguin
+
+  # The DMG on its own, the way people install it without Homebrew: download it,
+  # open it, copy the app to Applications, start it.
+  dmg:
+    name: DMG on ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS 15 Sequoia
+            os: macos-15
+          - name: macOS 26 Tahoe
+            os: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the DMG the cask points to, and check it
+        run: |
+          version=$(sed -n 's/^  version "\(.*\)"/\1/p' Casks/spacepenguin.rb)
+          sha=$(sed -n 's/^  sha256 "\(.*\)"/\1/p' Casks/spacepenguin.rb)
+          echo "SpacePenguin ${version}"
+          curl -fsSLo SpacePenguin.dmg \
+            "https://github.com/developer1-vd/SpacePenguin/releases/download/v${version}/SpacePenguin-${version}-macos.dmg"
+          echo "${sha}  SpacePenguin.dmg" | shasum -a 256 -c
+
+      - name: Open the DMG and copy the app to Applications
+        run: |
+          mount=$(hdiutil attach -nobrowse -readonly SpacePenguin.dmg | awk -F'\t' '/\/Volumes\// {print $NF}')
+          ls -la "${mount}"
+          test -d "${mount}/SpacePenguin.app"
+          [ -L "${mount}/Applications" ] || echo "::warning::The DMG has no Applications shortcut to drag the app onto"
+          ditto "${mount}/SpacePenguin.app" /Applications/SpacePenguin.app
+          hdiutil detach "${mount}"
+          lipo -archs /Applications/SpacePenguin.app/Contents/MacOS/SpacePenguin
+
+      - name: What Gatekeeper says
+        run: |
+          spctl --assess --type execute -vv /Applications/SpacePenguin.app 2>&1 \
+            || echo "::notice::Gatekeeper refuses SpacePenguin (not notarised): people need Open Anyway on the first start."
+
+      - name: Start it as a double-click does, and take a screenshot
+        run: |
+          open --env SPACEPENGUIN_NO_SETUP=1 -a /Applications/SpacePenguin.app --args https://example.com/
+          sleep 40
+          screencapture -x screenshot.png || true
+          pgrep -x SpacePenguin >/dev/null || { echo "::error::SpacePenguin is not running 40 seconds after it was opened"; exit 1; }
+          osascript -e 'quit app "SpacePenguin"' || pkill -x SpacePenguin
+          sleep 5
+          pgrep -x SpacePenguin >/dev/null && { echo "::warning::SpacePenguin did not quit when asked"; pkill -9 -x SpacePenguin; } || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshot-dmg-${{ matrix.os }}
+          path: screenshot.png
+          if-no-files-found: ignore
