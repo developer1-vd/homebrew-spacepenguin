@@ -25,8 +25,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Tap this repository
-        run: brew tap developer1-vd/spacepenguin "${GITHUB_WORKSPACE}"
+      - name: Tap this repository, and trust it
+        run: |
+          brew tap developer1-vd/spacepenguin "${GITHUB_WORKSPACE}"
+          # Homebrew loads casks from other people's taps only once told to.
+          brew trust developer1-vd/spacepenguin
 
       - name: Check the cask's style
         run: brew style --cask developer1-vd/spacepenguin/spacepenguin
