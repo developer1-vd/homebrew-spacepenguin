@@ -34,13 +34,14 @@ jobs:
       - name: Check the cask's style
         run: brew style --cask developer1-vd/spacepenguin/spacepenguin
 
-      # Two checks are left out while SpacePenguin is in release candidates: Homebrew's
-      # own catalogue takes no pre-releases, and its update check skips them (so it
-      # finds 0.1-A, the last full release). Both pass again from 1.0.0.
+      # Homebrew's own catalogue takes no pre-releases; this tap does, until 1.0.0.
       - name: Audit the cask (download and checksum included)
         run: |
-          brew audit --cask --online --except=github_prerelease_version,livecheck_version \
+          brew audit --cask --online --except=github_prerelease_version \
             developer1-vd/spacepenguin/spacepenguin
+
+      - name: Livecheck finds the newest release
+        run: brew livecheck --cask developer1-vd/spacepenguin/spacepenguin
 
       - name: Install
         run: brew install --cask developer1-vd/spacepenguin/spacepenguin
