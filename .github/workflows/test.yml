@@ -117,9 +117,23 @@ jobs:
           sleep 40
           screencapture -x screenshot.png || true
           pgrep -x SpacePenguin >/dev/null || { echo "::error::SpacePenguin is not running 40 seconds after it was opened"; exit 1; }
-          osascript -e 'quit app "SpacePenguin"' || pkill -x SpacePenguin
-          sleep 5
-          pgrep -x SpacePenguin >/dev/null && { echo "::warning::SpacePenguin did not quit when asked"; pkill -9 -x SpacePenguin; } || true
+          # Quit as the menu's Quit does. Qt answers macOS's quit request with
+          # "cancel" (-128) and then quits by itself, so osascript's answer means
+          # nothing: what counts is that it is gone, without a crash report.
+          osascript -e 'quit app "SpacePenguin"' || true
+          for i in $(seq 1 20); do pgrep -x SpacePenguin >/dev/null || break; sleep 1; done
+          if pgrep -x SpacePenguin >/dev/null; then
+            echo "::error::SpacePenguin did not quit within 20 seconds of being asked"
+            pkill -9 -x SpacePenguin
+            exit 1
+          fi
+          sleep 3
+          if ls ~/Library/Logs/DiagnosticReports/SpacePenguin* 2>/dev/null; then
+            echo "::error::SpacePenguin crashed (crash report above)"
+            head -c 4000 ~/Library/Logs/DiagnosticReports/SpacePenguin* || true
+            exit 1
+          fi
+          echo "SpacePenguin quit cleanly."
 
       - uses: actions/upload-artifact@v4
         if: always()
